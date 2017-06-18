@@ -133,7 +133,7 @@ void ModelPredictiveController::Update(const std::vector<double>& waypoints_x,
   MpcSolver::State state;
   state.v = speed * kMphToMps;
   state.cte = EvaluatePolynomial(coeffs, state.x) - state.y;
-  state.epsi = state.psi + std::atan(EvaluateDerivative(coeffs, state.x));
+  state.epsi = state.psi - std::atan(EvaluateDerivative(coeffs, state.x));
   MpcSolver::Solution solution;
   if (!solver_(state, coeffs, solution)) {
     std::cerr << "Failed to find a solution!" << std::endl;
