@@ -1,17 +1,31 @@
 #include "MpcSolver.h"
 #include <cppad/ipopt/solve.hpp>
 
+namespace {
+
 enum { kStateVars = 6 };
 
 enum { kActuators = 2 };
 
-auto kMaxAngle = 25. / 180. * M_PI;
+enum { kMaxThrottle = 1 };
 
-MpcSolver::MpcSolver(size_t n_points, double dt, double lf)
-  : n_points_(n_points),
-    offset_(n_points),
+} // namespace
+
+MpcSolver::MpcSolver(double lf,
+                     double max_steering,
+                     double dt,
+                     size_t n_points,
+                     size_t s_points,
+                     double v)
+  : lf_(lf),
+    max_steering_(max_steering),
     dt_(dt),
-    lf_(lf) {
+    n_points_(n_points),
+    s_points_(s_points),
+    v_(v),
+    offset_(n_points),
+    current_delta_(),
+    current_a_() {
   // Empty.
 }
 
@@ -30,7 +44,7 @@ bool MpcSolver::operator()(const State& state,
   // state values.
   Dvector vars(n_vars);
   for (auto i = 0; i < n_vars; ++i) {
-    vars[i] = 0.0;
+    vars[i] = 0;
   }
 
   // Set the initial variable values
@@ -48,22 +62,29 @@ bool MpcSolver::operator()(const State& state,
   // Set all non-actuators upper and lowerlimits to the max negative and
   // positive values
   for (auto i = 0; i < offset_.delta; ++i) {
-    vars_lowerbound[i] = -1.0e19;
-    vars_upperbound[i] = 1.0e19;
+    vars_lowerbound[i] = -std::numeric_limits<double>::max();
+    vars_upperbound[i] = std::numeric_limits<double>::max();
   }
 
   // The upper and lower limits of delta are set to -25 and 25 degrees (values
   // in radians)
-  for (auto i = offset_.delta; i < offset_.a; ++i) {
-    // TODO: Replace with constant
-    vars_lowerbound[i] = -0.436332;
-    vars_upperbound[i] = 0.436332;
+  for (auto i = offset_.delta; i < offset_.delta + s_points_; ++i) {
+    vars_lowerbound[i] = current_delta_;
+    vars_upperbound[i] = current_delta_;
+  }
+  for (auto i = offset_.delta + s_points_; i < offset_.a; ++i) {
+    vars_lowerbound[i] = -max_steering_;
+    vars_upperbound[i] = max_steering_;
   }
 
   // Acceleration/decceleration upper and lower limits
+  for (auto i = offset_.a; i < offset_.a + s_points_; ++i) {
+    vars_lowerbound[i] = current_a_;
+    vars_upperbound[i] = current_a_;
+  }
   for (auto i = offset_.a; i < n_vars; ++i) {
-    vars_lowerbound[i] = -1.0;
-    vars_upperbound[i] = 1.0;
+    vars_lowerbound[i] = -kMaxThrottle;
+    vars_upperbound[i] = kMaxThrottle;
   }
 
   // Lower and upper limits for constraints. All of these should be 0 except the
@@ -89,7 +110,7 @@ bool MpcSolver::operator()(const State& state,
   constraints_upperbound[offset_.epsi] = state.epsi;
 
   // Object that computes objective and constraints
-  MpcEvaluator evaluator(n_points_, dt_, lf_, coeffs);
+  MpcEvaluator evaluator(n_points_, dt_, lf_, v_, coeffs);
 
   // Options for IPOPT solver
   std::string options;
@@ -102,7 +123,7 @@ bool MpcSolver::operator()(const State& state,
   options += "Sparse  true        reverse\n";
   // NOTE: Currently the solver has a maximum time limit of 0.5 seconds. Change
   // this as you see fit.
-  options += "Numeric max_cpu_time          0.1\n";
+  options += "Numeric max_cpu_time          0.5\n";
 
   // Place to return solution
   CppAD::ipopt::solve_result<Dvector> sol;
@@ -119,23 +140,33 @@ bool MpcSolver::operator()(const State& state,
 
   // Check some of the solution values
   if (sol.status == CppAD::ipopt::solve_result<Dvector>::success) {
+    current_delta_ = sol.x[offset_.delta + s_points_];
+    current_a_ = sol.x[offset_.a + s_points_];
     solution.cost = sol.obj_value;
     solution.sequence_x.assign(
-      &sol.x[offset_.x], &sol.x[offset_.x] + n_points_);
+      &sol.x[offset_.x + s_points_],
+      &sol.x[offset_.x + s_points_] + n_points_ - s_points_);
     solution.sequence_y.assign(
-      &sol.x[offset_.y], &sol.x[offset_.y] + n_points_);
+      &sol.x[offset_.y + s_points_],
+      &sol.x[offset_.y + s_points_] + n_points_ - s_points_);
     solution.sequence_psi.assign(
-      &sol.x[offset_.psi], &sol.x[offset_.psi] + n_points_);
+      &sol.x[offset_.psi + s_points_],
+      &sol.x[offset_.psi + s_points_] + n_points_ - s_points_);
     solution.sequence_v.assign(
-      &sol.x[offset_.v], &sol.x[offset_.v] + n_points_);
+      &sol.x[offset_.v + s_points_],
+      &sol.x[offset_.v + s_points_] + n_points_ - s_points_);
     solution.sequence_cte.assign(
-      &sol.x[offset_.cte], &sol.x[offset_.cte] + n_points_);
+      &sol.x[offset_.cte + s_points_],
+      &sol.x[offset_.cte + s_points_] + n_points_ - s_points_);
     solution.sequence_epsi.assign(
-      &sol.x[offset_.epsi], &sol.x[offset_.epsi] + n_points_);
+      &sol.x[offset_.epsi + s_points_],
+      &sol.x[offset_.epsi + s_points_] + n_points_ - s_points_);
     solution.sequence_delta.assign(
-      &sol.x[offset_.delta], &sol.x[offset_.delta] + n_points_);
+      &sol.x[offset_.delta + s_points_],
+      &sol.x[offset_.delta + s_points_] + n_points_ - s_points_ - 1);
     solution.sequence_a.assign(
-      &sol.x[offset_.a], &sol.x[offset_.a] + n_points_);
+      &sol.x[offset_.a + s_points_],
+      &sol.x[offset_.a + s_points_] + n_points_ - s_points_ - 1);
   }
 
   return sol.status == CppAD::ipopt::solve_result<Dvector>::success;

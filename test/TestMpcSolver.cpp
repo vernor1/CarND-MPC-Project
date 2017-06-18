@@ -42,7 +42,8 @@ TEST(MpcSolver, Linear) {
   size_t n = 25;
   int iters = 50;
 
-  MpcSolver solver(n, 0.05, 2.67);
+  auto max_steering = 25. / 180. * M_PI;
+  MpcSolver solver(2.67, max_steering, 0.05, n, 0, 23);
 
   // Define coeffs
   std::vector<double> ptsx = {-100, 100};

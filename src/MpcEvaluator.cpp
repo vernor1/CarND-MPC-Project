@@ -1,5 +1,9 @@
 #include "MpcEvaluator.h"
 
+namespace {
+
+const auto kDeltaDiffPenalty = 1e4;
+
 // Evaluates a polynomial.
 CppAD::AD<double> EvaluatePolynomial(const std::vector<double>& coeffs,
                                      const CppAD::AD<double>& x) {
@@ -22,14 +26,18 @@ CppAD::AD<double> EvaluateDerivative(const std::vector<double>& coeffs,
   return result;
 }
 
+} // namespace
+
 MpcEvaluator::MpcEvaluator(size_t n_points,
                            double dt,
                            double lf,
+                           double v,
                            const std::vector<double>& coeffs)
   : n_points_(n_points),
     offset_(n_points),
     dt_(dt),
     lf_(lf),
+    v_(v),
     coeffs_(coeffs) {
   // Empty.
 }
@@ -39,11 +47,11 @@ void MpcEvaluator::operator()(ADvector& fg, const ADvector& vars) const {
   fg[0] = 0;
 
   // Penaltize error and speed values
+  auto cte = vars[offset_.cte];
   for (auto t = 0; t < n_points_; ++t) {
     fg[0] += CppAD::pow(vars[offset_.cte + t], 2);
     fg[0] += CppAD::pow(vars[offset_.epsi + t], 2);
-    // TODO: Make speed configurable
-    fg[0] += CppAD::pow(vars[offset_.v + t] - 22, 2);
+    fg[0] += CppAD::pow(vars[offset_.v + t] - v_ + CppAD::pow(cte, 2), 2);
   }
 
   // Penalize high actuation values
@@ -53,12 +61,10 @@ void MpcEvaluator::operator()(ADvector& fg, const ADvector& vars) const {
   }
 
   // Penalize high difference between subsequent actuation values
-  // TODO: Make the multiplier depending on speed or a constant
   for (auto t = 0; t < n_points_ - 2; ++t) {
-    fg[0] += 500.
+    fg[0] += kDeltaDiffPenalty
       * CppAD::pow(vars[offset_.delta + t + 1] - vars[offset_.delta + t], 2);
-    fg[0] += 1.
-      * CppAD::pow(vars[offset_.a + t + 1] - vars[offset_.a + t], 2);
+    fg[0] += CppAD::pow(vars[offset_.a + t + 1] - vars[offset_.a + t], 2);
   }
 
   // Initial constraints

@@ -3,11 +3,17 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 
+namespace {
+
+enum { kPolynomialOrder = 3 };
+
 // Meters in mile per international agreement of 1959
 const auto kMetersInMile = 1609.344;
 
 // Coefficient of conversion miles-per-hour to meters-per-second
 const auto kMphToMps = kMetersInMile / (60. * 60.);
+
+const auto kMaxSteering = 25. / 180. * M_PI;
 
 // Evaluates a polynomial.
 double EvaluatePolynomial(const std::vector<double>& coeffs, double x) {
@@ -65,8 +71,15 @@ std::vector<double> FitPolynomial(Eigen::VectorXd x,
   return std::vector<double>(result.data(), result.data() + result.size());
 }
 
-ModelPredictiveController::ModelPredictiveController()
-  : solver_(25, 0.05, 2.67) {
+} // namespace
+
+ModelPredictiveController::ModelPredictiveController(double lf,
+                                                     double dt,
+                                                     size_t n_points,
+                                                     size_t n_skipped_points,
+                                                     double v)
+  : solver_(lf, kMaxSteering, dt, n_points, n_skipped_points, v * kMphToMps) {
+  // Empty.
 }
 
 void ModelPredictiveController::Update(const std::vector<double>& waypoints_x,
@@ -84,20 +97,13 @@ void ModelPredictiveController::Update(const std::vector<double>& waypoints_x,
   AbsoluteToRelativeCoords(abs_x, abs_y, x, y, yaw, rel_x, rel_y);
 
   // Get coefficients
-  auto coeffs = FitPolynomial(rel_x, rel_y, 3);
+  auto coeffs = FitPolynomial(rel_x, rel_y, kPolynomialOrder);
 
   // Solve the problem
   MpcSolver::State state;
-  state.x = 0;
-  state.y = 0;
-  state.psi = 0;
-  // TODO: Convert to mps
   state.v = speed * kMphToMps;
   state.cte = EvaluatePolynomial(coeffs, state.x) - state.y;
-  state.epsi = state.psi - std::atan(EvaluateDerivative(coeffs, state.x));
-  std::cout << "x " << state.x << ", y " << state.y << ", psi " << state.psi
-            << ", v " << state.v << ", cte " << state.cte << ", epsi "
-            << state.epsi;
+  state.epsi = state.psi + std::atan(EvaluateDerivative(coeffs, state.x));
   MpcSolver::Solution solution;
   if (!solver_(state, coeffs, solution)) {
     std::cerr << "Failed to find a solution!" << std::endl;
@@ -108,15 +114,9 @@ void ModelPredictiveController::Update(const std::vector<double>& waypoints_x,
       std::vector<double>(rel_x.data(), rel_x.data() + rel_x.size()),
       std::vector<double>(rel_y.data(), rel_y.data() + rel_y.size()));
   } else {
-    std::cout << ", cost " << solution.cost
-              << ", x " << solution.sequence_x.at(1)
-              << ", y " << solution.sequence_y.at(1)
-              << ", cte " << solution.sequence_cte.at(1)
-              << ", delta " << solution.sequence_delta.at(0)
-              << ", a " << solution.sequence_a.at(0) << std::endl;
     // Control the vehicle
     control_function(
-      -solution.sequence_delta.at(1), solution.sequence_a.at(1),
+      -solution.sequence_delta.at(0) / kMaxSteering, solution.sequence_a.at(0),
       solution.sequence_x, solution.sequence_y,
       std::vector<double>(rel_x.data(), rel_x.data() + rel_x.size()),
       std::vector<double>(rel_y.data(), rel_y.data() + rel_y.size()));

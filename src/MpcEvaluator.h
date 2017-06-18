@@ -17,7 +17,7 @@ public:
     size_t delta;
     size_t a;
     VariableOffset(size_t n_points)
-    : x(0),
+    : x(),
       y(x + n_points),
       psi(y + n_points),
       v(psi + n_points),
@@ -31,6 +31,7 @@ public:
   MpcEvaluator(size_t n_points,
                double dt,
                double lf,
+               double v,
                const std::vector<double>& coeffs);
 
   // Destructor.
@@ -43,6 +44,7 @@ private:
   VariableOffset offset_;
   double dt_;
   double lf_;
+  double v_;
   std::vector<double> coeffs_;
 };
 

@@ -10,7 +10,7 @@ TEST(MpcEvaluator, FirstPoint) {
   for (auto i = 0; i < n_vars; ++i) {
     vars[i] = 0.0;
   }
-  MpcEvaluator evaluator(n, 0.1, 2.67, coeffs);
+  MpcEvaluator evaluator(n, 0.1, 2.67, 23, coeffs);
   vars[0 * n] = -1;
   vars[1 * n] = 10;
   vars[2 * n] = 0;

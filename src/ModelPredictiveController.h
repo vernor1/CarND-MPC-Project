@@ -16,7 +16,11 @@ public:
     const std::vector<double>& reference_y)> ControlFunction;
 
   // Contructor.
-  ModelPredictiveController();
+  ModelPredictiveController(double lf,
+                            double dt,
+                            size_t n_points,
+                            size_t n_skipped_points,
+                            double v);
 
   // Destructor.
   virtual ~ModelPredictiveController() { }

@@ -12,7 +12,7 @@ public:
     double v;
     double cte;
     double epsi;
-    // TODO: Add default ctor
+    State() : x(), y(), psi(), v(), cte(), epsi() { }
   };
 
   struct Solution {
@@ -28,7 +28,12 @@ public:
   };
 
   // Contructor.
-  MpcSolver(size_t n_points, double dt, double lf);
+  MpcSolver(double lf,
+            double max_steering,
+            double dt,
+            size_t n_points,
+            size_t s_points,
+            double v);
 
   // Destructor.
   virtual ~MpcSolver() { }
@@ -38,10 +43,15 @@ public:
                   Solution& solution);
 
 private:
-  size_t n_points_;
-  MpcEvaluator::VariableOffset offset_;
-  double dt_;
   double lf_;
+  double max_steering_;
+  double dt_;
+  size_t n_points_;
+  size_t s_points_;
+  double v_;
+  MpcEvaluator::VariableOffset offset_;
+  double current_delta_;
+  double current_a_;
 };
 
 #endif // MPCSOLVER_H
