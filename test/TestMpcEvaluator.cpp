@@ -19,7 +19,7 @@ TEST(MpcEvaluator, FirstPoint) {
   vars[5 * n - 1] = 0;
   ADvector fg(n_vars);
   evaluator(fg, vars);
-  EXPECT_NEAR(7421, CppAD::Value(fg[0]), 1e-9);
+  EXPECT_NEAR(50201, CppAD::Value(fg[0]), 1e-9);
   EXPECT_NEAR(-1, CppAD::Value(fg[1]), 1e-9);
   EXPECT_NEAR(10, CppAD::Value(fg[6]), 1e-9);
   EXPECT_NEAR(-10, CppAD::Value(fg[7]), 1e-9);

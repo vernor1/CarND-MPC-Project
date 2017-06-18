@@ -2,9 +2,19 @@
 
 namespace {
 
+// Local Constants
+// -----------------------------------------------------------------------------
+
+// Cost multiplier to penalize a high difference between subsequent delta
+// values.
 const auto kDeltaDiffPenalty = 1e4;
+// Local Helper-Functions
+// -----------------------------------------------------------------------------
 
 // Evaluates a polynomial.
+// @param[in] coeffs  Polynomial coefficients.
+// @param[in] x       CppAD-argument to avaluate the polynomial for.
+// @return            CppAD-value of the function.
 CppAD::AD<double> EvaluatePolynomial(const std::vector<double>& coeffs,
                                      const CppAD::AD<double>& x) {
   CppAD::AD<double> result = 0;
@@ -15,6 +25,9 @@ CppAD::AD<double> EvaluatePolynomial(const std::vector<double>& coeffs,
 }
 
 // Evaluates the 1st derivative of a polynomial.
+// @param[in] coeffs  Polynomial coefficients.
+// @param[in] x       CppAD-argument to avaluate the derivative for.
+// @return            CppAD-value of the function derivative.
 CppAD::AD<double> EvaluateDerivative(const std::vector<double>& coeffs,
                                      const CppAD::AD<double>& x) {
   auto n_coeffs = coeffs.size();
@@ -27,6 +40,9 @@ CppAD::AD<double> EvaluateDerivative(const std::vector<double>& coeffs,
 }
 
 } // namespace
+
+// Public Methods
+// -----------------------------------------------------------------------------
 
 MpcEvaluator::MpcEvaluator(size_t n_points,
                            double dt,

@@ -3,21 +3,19 @@
 #include "../src/Eigen-3.3/Eigen/QR"
 #include "../src/MpcSolver.h"
 
-// Evaluate a polynomial.
-double polyeval(std::vector<double> coeffs, double x) {
-  double result = 0.0;
-  for (int i = 0; i < coeffs.size(); i++) {
-    result += coeffs[i] * pow(x, i);
+// Evaluates a polynomial.
+double EvaluatePolynomial(const std::vector<double>& coeffs, double x) {
+  double result = 0;
+  for (auto i = 0; i < coeffs.size(); ++i) {
+    result += coeffs[i] * std::pow(x, i);
   }
   return result;
 }
 
 // Fit a polynomial.
-// Adapted from
-// https://github.com/JuliaMath/Polynomials.jl/blob/master/src/Polynomials.jl#L676-L716
-std::vector<double> polyfit(std::vector<double> xvals,
-                            std::vector<double> yvals,
-                            int order) {
+std::vector<double> FitPolynomial(std::vector<double> xvals,
+                                  std::vector<double> yvals,
+                                  int order) {
   assert(xvals.size() == yvals.size());
   assert(order >= 1 && order <= xvals.size() - 1);
   Eigen::MatrixXd A(xvals.size(), order + 1);
@@ -48,7 +46,7 @@ TEST(MpcSolver, Linear) {
   // Define coeffs
   std::vector<double> ptsx = {-100, 100};
   std::vector<double> ptsy = {-1, -1};
-  auto coeffs = polyfit(ptsx, ptsy, 1);
+  auto coeffs = FitPolynomial(ptsx, ptsy, 1);
 
   // Define state
   MpcSolver::State state;
@@ -56,7 +54,7 @@ TEST(MpcSolver, Linear) {
   state.y = 10;
   state.psi = 0;
   state.v = 10;
-  state.cte = polyeval(coeffs, state.x) - state.y;
+  state.cte = EvaluatePolynomial(coeffs, state.x) - state.y;
   state.epsi = state.psi - atan(coeffs[1]);
 
   // Declare solution
@@ -73,13 +71,13 @@ TEST(MpcSolver, Linear) {
     state.epsi = solution.sequence_epsi.at(1);
   }
 
-  EXPECT_NEAR(22.551, solution.sequence_x.at(1), 1e-3);
-  EXPECT_NEAR(-1.52923, solution.sequence_y.at(1), 1e-3);
-  EXPECT_NEAR(0.0482441, solution.sequence_psi.at(1), 1e-3);
-  EXPECT_NEAR(12.5, solution.sequence_v.at(1), 1e-3);
-  EXPECT_NEAR(0.575441, solution.sequence_cte.at(1), 1e-3);
-  EXPECT_NEAR(0.0386352, solution.sequence_epsi.at(1), 1e-3);
-  EXPECT_NEAR(0.0206073, solution.sequence_delta.at(0), 1e-3);
+  EXPECT_NEAR(17.551, solution.sequence_x.at(1), 1e-3);
+  EXPECT_NEAR(-1.697, solution.sequence_y.at(1), 1e-3);
+  EXPECT_NEAR(-0.056, solution.sequence_psi.at(1), 1e-3);
+  EXPECT_NEAR(9.771, solution.sequence_v.at(1), 1e-3);
+  EXPECT_NEAR(0.610, solution.sequence_cte.at(1), 1e-3);
+  EXPECT_NEAR(-0.089, solution.sequence_epsi.at(1), 1e-3);
+  EXPECT_NEAR(0.092, solution.sequence_delta.at(0), 1e-3);
   EXPECT_NEAR(1, solution.sequence_a.at(0), 1e-3);
 }
 

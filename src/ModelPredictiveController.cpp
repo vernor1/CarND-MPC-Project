@@ -5,17 +5,28 @@
 
 namespace {
 
+// Local Constants
+// -----------------------------------------------------------------------------
+
+// Order of the polinomial to fit the reference waypoints.
 enum { kPolynomialOrder = 3 };
 
-// Meters in mile per international agreement of 1959
+// Meters in mile per international agreement of 1959,
 const auto kMetersInMile = 1609.344;
 
-// Coefficient of conversion miles-per-hour to meters-per-second
+// Coefficient of conversion miles-per-hour to meters-per-second.
 const auto kMphToMps = kMetersInMile / (60. * 60.);
 
+// Max steering angle of the vehicle (25 degrees) in [rad].
 const auto kMaxSteering = 25. / 180. * M_PI;
 
+// Local Helper-Functions
+// -----------------------------------------------------------------------------
+
 // Evaluates a polynomial.
+// @param[in] coeffs  Polynomial coefficients.
+// @param[in] x       Argument to avaluate the polynomial for.
+// @return            Value of the function.
 double EvaluatePolynomial(const std::vector<double>& coeffs, double x) {
   double result = 0;
   for (auto i = 0; i < coeffs.size(); ++i) {
@@ -25,6 +36,9 @@ double EvaluatePolynomial(const std::vector<double>& coeffs, double x) {
 }
 
 // Evaluates the 1st derivative of a polynomial.
+// @param[in] coeffs  Polynomial coefficients.
+// @param[in] x       Argument to avaluate the derivative for.
+// @return            Value of the function derivative.
 double EvaluateDerivative(const std::vector<double>& coeffs, double x) {
   auto n_coeffs = coeffs.size();
   assert(n_coeffs > 0);
@@ -35,23 +49,36 @@ double EvaluateDerivative(const std::vector<double>& coeffs, double x) {
   return result;
 }
 
+// Converts absolute map coordinates to the relative coordinate system of the
+// vehicle.
+// @param[in] abs_x  Absolute X-coordinates.
+// @param[in] abs_y  Absolute Y-coordinates.
+// @param[in] x      X-coordinate of the vehicle.
+// @param[in] y      Y-coordinate of the vehicle.
+// @param[in] yaw    Yaw of the vehicle.
+// @param[in] rel_x  Relative X-coordinates.
+// @param[in] rel_y  Relative Y-coordinates.
 void AbsoluteToRelativeCoords(const Eigen::VectorXd& abs_x,
                               const Eigen::VectorXd& abs_y,
                               double x,
                               double y,
-                              double a,
+                              double yaw,
                               Eigen::VectorXd& rel_x,
                               Eigen::VectorXd& rel_y) {
   assert(abs_x.size() == abs_y.size());
-  auto cos_a = std::cos(a);
-  auto sin_a = std::sin(a);
+  auto cos_a = std::cos(yaw);
+  auto sin_a = std::sin(yaw);
   auto diff_x = abs_x.array() - x;
   auto diff_y = abs_y.array() - y;
   rel_x = diff_x * cos_a + diff_y * sin_a;
   rel_y = diff_y * cos_a - diff_x * sin_a;
 }
 
-// Fit a polynomial.
+// Fits a polynomial to coordinates.
+// @param[in] x      Eigen vector of X-coordinates.
+// @param[in] y      Eigen vector of Y-coordinates.
+// @param[in] order  Order of the polynomial.
+// @return           Polynomial coefficients.
 std::vector<double> FitPolynomial(Eigen::VectorXd x,
                                   Eigen::VectorXd y,
                                   unsigned int order) {
@@ -81,6 +108,9 @@ ModelPredictiveController::ModelPredictiveController(double lf,
   : solver_(lf, kMaxSteering, dt, n_points, n_skipped_points, v * kMphToMps) {
   // Empty.
 }
+
+// Public Methods
+// -----------------------------------------------------------------------------
 
 void ModelPredictiveController::Update(const std::vector<double>& waypoints_x,
                                        const std::vector<double>& waypoints_y,

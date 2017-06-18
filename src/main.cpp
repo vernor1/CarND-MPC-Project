@@ -1,5 +1,3 @@
-#include <math.h>
-#include <uWS/uWS.h>
 #include <chrono>
 #include <iostream>
 #include <thread>
@@ -7,6 +5,7 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
+#include "uWS/uWS.h"
 #include "ModelPredictiveController.h"
 
 using namespace std::placeholders;
@@ -16,17 +15,22 @@ namespace {
 // Local Constants
 // -----------------------------------------------------------------------------
 
-// TCP port accepting incoming connections from simulator
+// TCP port accepting incoming connections from simulator.
 enum { kTcpPort = 4567 };
 
+// Default number of points in the predicted path.
 enum { kDefaultN = 12 };
 
+// Default number of nearest points to be skipped in the predicted path.
 enum { kDefaultS = 2 };
 
+// Default distance between the front of the vehicle and its center of gravity.
 const auto kDefaultLf = 2.67;
 
+// Default time difference between predicted waypoints.
 const auto kDefaultDt = 0.15;
 
+// Default desired velocity in [mph].
 const auto kDefaultV = 80;
 
 // Local Helper-Functions
@@ -35,7 +39,7 @@ const auto kDefaultV = 80;
 // Checks if the SocketIO event has JSON data.
 // @param[in] s  Raw event string
 // @return       If there is data the JSON object in string format will be
-//               returned, else the empty string will be returned.
+//               returned, else an empty string will be returned.
 std::string GetJsonData(const std::string& s) {
   auto found_null = s.find("null");
   auto b1 = s.find_first_of("[");
@@ -45,6 +49,14 @@ std::string GetJsonData(const std::string& s) {
     && b2 != std::string::npos ? s.substr(b1, b2 - b1 + 1) : std::string();
 }
 
+// Sends a control message to the simulator.
+// @param[in] ws           WebSocket object.
+// @param[in] steering     Steering value in [-1..1].
+// @param[in] throttle     Throttle value in [-1..1].
+// @param[in] predicted_x  X-coordinates of predicted waypoints.
+// @param[in] predicted_y  Y-coordinates of predicted waypoints.
+// @param[in] reference_x  X-coordinates of reference waypoints.
+// @param[in] reference_y  Y-coordinates of reference waypoints.
 void ControlSimulator(uWS::WebSocket<uWS::SERVER>& ws,
                       double steering,
                       double throttle,
@@ -60,23 +72,21 @@ void ControlSimulator(uWS::WebSocket<uWS::SERVER>& ws,
   json_msg["next_x"] = reference_x;
   json_msg["next_y"] = reference_y;
   auto msg = "42[\"steer\"," + json_msg.dump() + "]";
-  // Latency
-  // The purpose is to mimic real driving conditions where
-  // the car does actuate the commands instantly.
-  //
-  // Feel free to play around with this value but should be to drive
-  // around the track with 100ms latency.
-  //
-  // NOTE: REMEMBER TO SET THIS TO 100 MILLISECONDS BEFORE
-  // SUBMITTING.
+
+  // Adding latency.
+  // The purpose is to mimic real driving conditions where the car does not
+  // actuate the commands instantly. Feel free to play around with this value
+  // but should be to drive around the track with 100ms latency.
+  // NOTE: REMEMBER TO SET THIS TO 100 MILLISECONDS BEFORE SUBMITTING.
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 }
 
-// Checks arguments of the program and exits, if the check fails.
-// @param[in] argc  Number of arguments
-// @param[in] argv  Array of arguments
-// @return          A smart pointer to the PID controller object
+// Creates an instance of the Model Predictive Controller. Checks arguments of
+// the program and exits, if the check fails.
+// @param[in] argc  Number of arguments.
+// @param[in] argv  Array of arguments.
+// @return          A smart pointer to the MPC object.
 std::shared_ptr<ModelPredictiveController> CreateMpc(int argc, char* argv[]) {
   std::stringstream oss;
     oss << "Usage instructions: " << argv[0] << " [Lf dt N S V]" << std::endl
@@ -126,6 +136,9 @@ std::shared_ptr<ModelPredictiveController> CreateMpc(int argc, char* argv[]) {
 
 } // namespace
 
+// main
+// -----------------------------------------------------------------------------
+
 int main(int argc, char* argv[]) {
   uWS::Hub hub;
   auto mpc = CreateMpc(argc, argv);
@@ -164,7 +177,7 @@ int main(int argc, char* argv[]) {
 
   hub.onConnection([&hub](uWS::WebSocket<uWS::SERVER> ws,
                           uWS::HttpRequest req) {
-    std::cout << "WebSocket connected!!!" << std::endl;
+    std::cout << "WebSocket connected" << std::endl;
   });
 
   hub.onDisconnection([&hub](uWS::WebSocket<uWS::SERVER> ws,

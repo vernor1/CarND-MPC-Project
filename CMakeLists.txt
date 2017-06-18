@@ -9,7 +9,8 @@ add_definitions(-std=c++11 -O3)
 set(CXX_FLAGS "-Wall")
 set(CMAKE_CXX_FLAGS, "${CXX_FLAGS}")
 
-set(sources src/MpcSolver.cpp src/MpcEvaluator.cpp src/ModelPredictiveController.cpp src/main.cpp)
+set(sources src/MpcSolver.cpp src/MpcEvaluator.cpp
+            src/ModelPredictiveController.cpp src/main.cpp)
 
 include_directories(/usr/local/include)
 link_directories(/usr/local/lib)
@@ -72,11 +73,6 @@ if (test)
   # ----------------------------------------------------------------------------
   add_library(mpc_evaluator_lib src/MpcEvaluator.cpp)
   add_library(mpc_solver_lib src/MpcSolver.cpp)
-#  add_library(pid_controller_lib src/PidController.cpp)
-
-#  target_link_libraries(mpc mpc_evaluator_lib)
-#  target_link_libraries(mpc mpc_solver_lib)
-#  target_link_libraries(pid pid_controller_lib)
 
   enable_testing()
 
@@ -84,21 +80,16 @@ if (test)
   # ----------------------------------------------------------------------------
   add_executable(test_mpc_evaluator test/TestMpcEvaluator.cpp)
   add_executable(test_mpc_solver test/TestMpcSolver.cpp)
-#  add_executable(test_pid_controller test/TestPidController.cpp)
 
   # Standard linking to gtest stuff
   target_link_libraries(test_mpc_evaluator libgtest)
   target_link_libraries(test_mpc_solver libgtest)
-#  target_link_libraries(test_pid_controller libgtest libgmock)
 
   # Extra linking for the project
   target_link_libraries(test_mpc_evaluator mpc_evaluator_lib)
   target_link_libraries(test_mpc_solver mpc_solver_lib mpc_evaluator_lib ipopt)
-#  target_link_libraries(test_pid_controller pid_controller_lib pid_lib
-#                        twiddler_lib)
 
   # Make tests running through 'make test'
   add_test(NAME test_mpc_evaluator COMMAND test_mpc_evaluator)
   add_test(NAME test_mpc_solver COMMAND test_mpc_solver)
-#  add_test(NAME test_pid_controller COMMAND test_pid_controller)
 endif()

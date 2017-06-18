@@ -3,13 +3,22 @@
 
 namespace {
 
+// Local Constants
+// -----------------------------------------------------------------------------
+
+// Number of state variables.
 enum { kStateVars = 6 };
 
+// Number of actuators.
 enum { kActuators = 2 };
 
-enum { kMaxThrottle = 1 };
+// Maximum throttle value.
+const auto kMaxThrottle = 1;
 
 } // namespace
+
+// Public Methods
+// -----------------------------------------------------------------------------
 
 MpcSolver::MpcSolver(double lf,
                      double max_steering,
@@ -66,29 +75,29 @@ bool MpcSolver::operator()(const State& state,
     vars_upperbound[i] = std::numeric_limits<double>::max();
   }
 
-  // The upper and lower limits of delta are set to -25 and 25 degrees (values
-  // in radians)
-  for (auto i = offset_.delta; i < offset_.delta + s_points_; ++i) {
-    vars_lowerbound[i] = current_delta_;
-    vars_upperbound[i] = current_delta_;
+  // Constrain the actuators to the current valus for the nearest skipped
+  // waypoints. The waypoints are skipped due to the latency.
+  for (auto i = 0; i < s_points_; ++i) {
+    vars_lowerbound[i + offset_.delta] = current_delta_;
+    vars_upperbound[i + offset_.delta] = current_delta_;
+    vars_lowerbound[i + offset_.a] = current_a_;
+    vars_upperbound[i + offset_.a] = current_a_;
   }
+
+  // The upper and lower limits of delta are set to the maximum steering angle
   for (auto i = offset_.delta + s_points_; i < offset_.a; ++i) {
     vars_lowerbound[i] = -max_steering_;
     vars_upperbound[i] = max_steering_;
   }
 
   // Acceleration/decceleration upper and lower limits
-  for (auto i = offset_.a; i < offset_.a + s_points_; ++i) {
-    vars_lowerbound[i] = current_a_;
-    vars_upperbound[i] = current_a_;
-  }
   for (auto i = offset_.a; i < n_vars; ++i) {
     vars_lowerbound[i] = -kMaxThrottle;
     vars_upperbound[i] = kMaxThrottle;
   }
 
   // Lower and upper limits for constraints. All of these should be 0 except the
-  // initial state indices.
+  // initial state indices
   Dvector constraints_lowerbound(n_constraints);
   Dvector constraints_upperbound(n_constraints);
   for (auto i = 0; i < n_constraints; ++i) {
@@ -137,8 +146,7 @@ bool MpcSolver::operator()(const State& state,
                                              constraints_upperbound,
                                              evaluator,
                                              sol);
-
-  // Check some of the solution values
+  // Return the solution values
   if (sol.status == CppAD::ipopt::solve_result<Dvector>::success) {
     current_delta_ = sol.x[offset_.delta + s_points_];
     current_a_ = sol.x[offset_.a + s_points_];

@@ -3,10 +3,12 @@
 
 #include <cppad/cppad.hpp>
 
+// Implements the MPC Evaluator for plugging it into the Ipopt optimizer.
 class MpcEvaluator {
 public:
   typedef CPPAD_TESTVECTOR(CppAD::AD<double>) ADvector;
 
+  // Contains the offset of every state variable and actuator.
   struct VariableOffset {
     size_t x;
     size_t y;
@@ -28,6 +30,12 @@ public:
   };
 
   // Contructor.
+  // @param n_points  Number of points in the predicted path.
+  // @param dt        Time difference between predicted waypoints.
+  // @param lf        Distance between the front of the vehicle and its center
+  //                  of gravity.
+  // @param v         Desired velocity in [mph].
+  // @param coeffs    Polynomial coefficients of the refernce path.
   MpcEvaluator(size_t n_points,
                double dt,
                double lf,
@@ -37,6 +45,9 @@ public:
   // Destructor.
   virtual ~MpcEvaluator() { }
 
+  // Evaluates the solution.
+  // @param[out] fg    CppAD-vector of the evaluation.
+  // @param[in]  vars  CppAD-vector of state variables and actuations
   void operator()(ADvector& fg, const ADvector& vars) const;
 
 private:
