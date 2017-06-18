@@ -49,7 +49,7 @@ The value of `dt` is chosen as 150ms to be a devisor of the observed total actua
 
 #### 3. Polynomial Fitting and MPC Preprocessing.
 
-A 3rd order polinomial is chosen to fit the reference waypoints as well as the predicted path. Even though a 2nd order polinomial would be quite enough to model the reference path, a higher order polinomial is very useful for predicting the future way points, especially when recovering after a sharp turn at a high speed, or avoiding a collision. See the polinomial fitting in methods `ModelPredictiveController::Update` and `MpcEvaluator::operator()`.
+A 3rd order polinomial is chosen to fit the reference waypoints as well as the predicted path. Even though a 2nd order polinomial would be quite enough to model the reference path, a higher order polinomial is very useful for predicting the future way points, especially when recovering after a sharp turn at high speed, or avoiding a collision. See the polinomial fitting in methods `ModelPredictiveController::Update` and `MpcEvaluator::operator()`.
 
 The only preprocessing made before MPC is conversion of the speed reported by the vehicle telemetry from [mph] to [m/s], because the reference waypoints are reported in the metric coordinate system. See the conversion done in method `ModelPredictiveController::Update`.
 
@@ -113,3 +113,39 @@ A recording of the final MPC (click to see the full footage):
 2. Make a build directory: `mkdir build && cd build`
 3. Compile: `cmake .. && make`
 4. Run it: `./mpc`.
+
+## Basic Usage Instructions
+
+The executable binary supports command-line parameters:
+```
+Usage instructions: ./mpc [Lf dt N S V]
+  Lf  Distance between the front of the vehicle and its center of gravity (2.67 by default)
+  dt  Time difference between predicted waypoints (0.15 by default)
+  N   Number of predicted waypoints (12 by default)
+  S   Number of nearest waypoints to skip on control due to the latency (2 by default)
+  V   Desired speed in [mph] (80 by default)
+```
+
+The code is covered with some unit tests. The [Google Test](https://github.com/google/googletest) framework is used for that. To build and run the tests, enter the command in the build directory:
+```
+$ cmake -Dtest=ON .. && make && make test
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /Users/vernor/Documents/carnd/carnd_mpc_project/build
+[  9%] Built target mpc_solver_lib
+[ 47%] Built target gtest
+[ 57%] Built target mpc_evaluator_lib
+[ 66%] Built target test_mpc_solver
+[ 76%] Built target test_mpc_evaluator
+[100%] Built target mpc
+Running tests...
+Test project /Users/vernor/Documents/carnd/carnd_mpc_project/build
+    Start 1: test_mpc_evaluator
+1/2 Test #1: test_mpc_evaluator ...............   Passed    0.00 sec
+    Start 2: test_mpc_solver
+2/2 Test #2: test_mpc_solver ..................   Passed    1.33 sec
+
+100% tests passed, 0 tests failed out of 2
+
+Total Test time (real) =   1.34 sec
+```
